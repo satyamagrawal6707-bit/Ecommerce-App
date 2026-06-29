@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopSphere - All Products</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <a class="logo" href="index.html">Shop<span>Sphere</span></a>
+    <a class="cart-btn" href="cart.html">
+      🛒 Cart <span class="cart-badge" id="cart-count">0</span>
+    </a>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <h1 class="page-title">All Products</h1>
+    <p class="page-subtitle" id="subtitle">Loading products...</p>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Search products or brands..." oninput="filterProducts()" />
+      <select id="category-select" onchange="filterProducts()">
+        <option value="All">All Categories</option>
+      </select>
+      <select id="sort-select" onchange="filterProducts()">
+        <option value="default">Sort: Default</option>
+        <option value="price-asc">Price: Low → High</option>
+        <option value="price-desc">Price: High → Low</option>
+        <option value="rating">Top Rated</option>
+        <option value="discount">Best Discount</option>
+      </select>
+      <span class="result-count" id="result-count"></span>
+    </div>
+
+    <!-- PRODUCT GRID -->
+    <div class="grid" id="product-grid">
+      <div class="loader">Loading products...</div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    let allProducts = [];
+
+    // Fetch all products
+    fetch("https://dummyjson.com/products?limit=194")
+      .then(res => res.json())
+      .then(data => {
+        allProducts = data.products;
+        document.getElementById("subtitle").textContent =
+          `Browse ${allProducts.length} products`;
+
+        // Populate categories
+        const categories = ["All", ...new Set(allProducts.map(p => p.category))].sort();
+        const select = document.getElementById("category-select");
+        select.innerHTML = categories.map(c =>
+          `<option value="${c}">${c}</option>`
+        ).join("");
+
+        renderProducts(allProducts);
+        updateCartBadge();
+      });
+
+    function filterProducts() {
+      const search = document.getElementById("search-input").value.toLowerCase();
+      const category = document.getElementById("category-select").value;
+      const sort = document.getElementById("sort-select").value;
+
+      let filtered = allProducts.filter(p => {
+        const matchCat = category === "All" || p.category === category;
+        const matchSearch = p.title.toLowerCase().includes(search) ||
+          (p.brand || "").toLowerCase().includes(search);
+        return matchCat && matchSearch;
+      });
+
+      if (sort === "price-asc") filtered.sort((a, b) => a.price - b.price);
+      if (sort === "price-desc") filtered.sort((a, b) => b.price - a.price);
+      if (sort === "rating") filtered.sort((a, b) => b.rating - a.rating);
+      if (sort === "discount") filtered.sort((a, b) => b.discountPercentage - a.discountPercentage);
+
+      renderProducts(filtered);
+    }
+
+    function renderProducts(products) {
+      const grid = document.getElementById("product-grid");
+      document.getElementById("result-count").textContent = `${products.length} results`;
+
+      if (products.length === 0) {
+        grid.innerHTML = `<div class="loader">No products found.</div>`;
+        return;
+      }
+
+      grid.innerHTML = products.map(p => {
+        const cart = getCart();
+        const inCart = cart.find(i => i.id === p.id);
+        const btnText = inCart ? `✓ In Cart (${inCart.qty})` : "+ Add to Cart";
+        const btnClass = inCart ? "add-btn in-cart" : "add-btn";
+
+        return `
+          <div class="card" onclick="goToProduct(${p.id})">
+            <img src="${p.thumbnail}" alt="${p.title}" onerror="this.src='https://via.placeholder.com/200'" />
+            <div class="card-body">
+              <div class="card-brand">${p.brand || p.category}</div>
+              <div class="card-title">${p.title}</div>
+              <div class="card-bottom">
+                <div>
+                  <span class="card-price">$${p.price}</span>
+                  ${p.discountPercentage > 0 ? `<span class="discount-badge">-${Math.round(p.discountPercentage)}%</span>` : ""}
+                </div>
+                <span class="rating"><span class="star">★</span> ${p.rating.toFixed(1)}</span>
+              </div>
+              <button class="${btnClass}" onclick="event.stopPropagation(); addToCart(${p.id})">${btnText}</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function goToProduct(id) {
+      window.location.href = `product.html?id=${id}`;
+    }
+
+    function addToCart(productId) {
+      const product = allProducts.find(p => p.id === productId);
+      let cart = getCart();
+      const existing = cart.find(i => i.id === productId);
+      if (existing) {
+        cart = cart.map(i => i.id === productId ? { ...i, qty: i.qty + 1 } : i);
+      } else {
+        cart.push({ ...product, qty: 1 });
+      }
+      saveCart(cart);
+      updateCartBadge();
+      filterProducts(); // re-render to update button
+    }
+  </script>
+</body>
+</html>

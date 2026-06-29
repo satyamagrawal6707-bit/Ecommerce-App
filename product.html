@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopSphere - Product</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <a class="logo" href="index.html">Shop<span>Sphere</span></a>
+    <a class="cart-btn" href="cart.html">
+      🛒 Cart <span class="cart-badge" id="cart-count">0</span>
+    </a>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <a class="back-btn" href="index.html">← Back to Products</a>
+    <div id="product-container">
+      <div class="loader">Loading product...</div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    let currentProduct = null;
+    let qty = 1;
+    let activeImg = 0;
+
+    // Get product ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get("id");
+
+    updateCartBadge();
+
+    fetch(`https://dummyjson.com/products/${productId}`)
+      .then(res => res.json())
+      .then(product => {
+        currentProduct = product;
+        document.title = `ShopSphere - ${product.title}`;
+        renderProduct(product);
+      });
+
+    function renderProduct(p) {
+      const images = p.images && p.images.length ? p.images : [p.thumbnail];
+      const originalPrice = (p.price / (1 - p.discountPercentage / 100)).toFixed(2);
+      const savings = (originalPrice - p.price).toFixed(2);
+      const stockColor = p.stock > 20 ? "#16a34a" : p.stock > 5 ? "#d97706" : "#dc2626";
+      const cart = getCart();
+      const inCart = cart.find(i => i.id === p.id);
+
+      const thumbsHTML = images.length > 1 ? `
+        <div class="thumb-row">
+          ${images.map((img, i) => `
+            <img src="${img}" class="thumb ${i === 0 ? 'active' : ''}" onclick="changeImage(${i})" onerror="this.src='https://via.placeholder.com/60'" />
+          `).join("")}
+        </div>
+      ` : "";
+
+      const tagsHTML = p.tags && p.tags.length ? `
+        <div class="tag-row">
+          ${p.tags.map(t => `<span class="tag">${t}</span>`).join("")}
+        </div>
+      ` : "";
+
+      const reviewsHTML = p.reviews && p.reviews.length ? `
+        <div class="reviews-title">Customer Reviews</div>
+        ${p.reviews.slice(0, 3).map(r => `
+          <div class="review-item">
+            <div class="review-top">
+              <span class="reviewer-name">${r.reviewerName}</span>
+              <span class="review-stars">${"★".repeat(r.rating)}</span>
+            </div>
+            <p class="review-comment">${r.comment}</p>
+          </div>
+        `).join("")}
+      ` : "";
+
+      document.getElementById("product-container").innerHTML = `
+        <div class="detail-grid">
+
+          <!-- LEFT: Images -->
+          <div>
+            <div class="detail-img-wrap">
+              <img id="main-img" src="${images[0]}" alt="${p.title}" onerror="this.src='https://via.placeholder.com/300'" />
+            </div>
+            ${thumbsHTML}
+          </div>
+
+          <!-- RIGHT: Info -->
+          <div class="detail-info">
+            <div class="detail-category">${p.category}</div>
+            <h1 class="detail-title">${p.title}</h1>
+
+            <div class="detail-meta">
+              <span>⭐ ${p.rating.toFixed(1)}</span>
+              <span>·</span>
+              <span>${p.reviews ? p.reviews.length : 0} reviews</span>
+              <span>·</span>
+              <span class="stock-badge" style="background:${stockColor}20; color:${stockColor}">
+                ${p.stock > 0 ? p.stock + " in stock" : "Out of stock"}
+              </span>
+            </div>
+
+            <div>
+              <span class="detail-price">$${p.price}</span>
+              ${p.discountPercentage > 0 ? `<span class="old-price">$${originalPrice}</span>` : ""}
+              ${p.discountPercentage > 0 ? `<div class="savings">You save $${savings} (${Math.round(p.discountPercentage)}% off)</div>` : ""}
+            </div>
+
+            <p class="detail-desc">${p.description}</p>
+
+            <div class="spec-grid">
+              ${p.brand ? `<span class="spec-label">Brand</span><span class="spec-val">${p.brand}</span>` : ""}
+              ${p.sku ? `<span class="spec-label">SKU</span><span class="spec-val">${p.sku}</span>` : ""}
+              ${p.weight ? `<span class="spec-label">Weight</span><span class="spec-val">${p.weight}g</span>` : ""}
+              ${p.warrantyInformation ? `<span class="spec-label">Warranty</span><span class="spec-val">${p.warrantyInformation}</span>` : ""}
+              ${p.shippingInformation ? `<span class="spec-label">Shipping</span><span class="spec-val">${p.shippingInformation}</span>` : ""}
+              ${p.returnPolicy ? `<span class="spec-label">Returns</span><span class="spec-val">${p.returnPolicy}</span>` : ""}
+            </div>
+
+            ${tagsHTML}
+
+            <div class="qty-row">
+              <button class="qty-btn" onclick="changeQty(-1)">−</button>
+              <span class="qty-num" id="qty-display">1</span>
+              <button class="qty-btn" onclick="changeQty(1)">+</button>
+              <button class="add-to-cart-btn" id="atc-btn" onclick="addToCartDetail()">
+                ${inCart ? `Update Cart (${inCart.qty} already)` : "Add to Cart"}
+              </button>
+            </div>
+
+            ${reviewsHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    function changeImage(index) {
+      activeImg = index;
+      const images = currentProduct.images && currentProduct.images.length
+        ? currentProduct.images : [currentProduct.thumbnail];
+      document.getElementById("main-img").src = images[index];
+      document.querySelectorAll(".thumb").forEach((t, i) => {
+        t.classList.toggle("active", i === index);
+      });
+    }
+
+    function changeQty(delta) {
+      qty = Math.max(1, Math.min(currentProduct.stock, qty + delta));
+      document.getElementById("qty-display").textContent = qty;
+    }
+
+    function addToCartDetail() {
+      let cart = getCart();
+      const existing = cart.find(i => i.id === currentProduct.id);
+      if (existing) {
+        cart = cart.map(i => i.id === currentProduct.id ? { ...i, qty: i.qty + qty } : i);
+      } else {
+        cart.push({ ...currentProduct, qty });
+      }
+      saveCart(cart);
+      updateCartBadge();
+      const btn = document.getElementById("atc-btn");
+      btn.textContent = "✓ Added to Cart!";
+      btn.style.background = "#16a34a";
+      setTimeout(() => {
+        btn.textContent = "Add to Cart";
+        btn.style.background = "";
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

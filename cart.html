@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopSphere - Cart</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <a class="logo" href="index.html">Shop<span>Sphere</span></a>
+    <a class="cart-btn" href="index.html" style="background:transparent; border: 1.5px solid rgba(255,255,255,0.3);">
+      ← Back to Shop
+    </a>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <h1 class="page-title">Your Cart</h1>
+    <p class="page-subtitle" id="cart-subtitle"></p>
+    <div id="cart-container"></div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    updateCartBadge();
+    renderCart();
+
+    function renderCart() {
+      const cart = getCart();
+      const container = document.getElementById("cart-container");
+      const subtitle = document.getElementById("cart-subtitle");
+
+      if (cart.length === 0) {
+        subtitle.textContent = "";
+        container.innerHTML = `
+          <div class="empty-cart">
+            <div class="empty-icon">🛒</div>
+            <h2>Your cart is empty</h2>
+            <p>Add some products to get started!</p>
+            <a class="shop-now-btn" href="index.html">Browse Products</a>
+          </div>
+        `;
+        return;
+      }
+
+      const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+      subtitle.textContent = `${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`;
+
+      // Calculations
+      const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      const totalDiscount = cart.reduce((s, i) => {
+        const orig = i.price / (1 - i.discountPercentage / 100);
+        return s + (orig - i.price) * i.qty;
+      }, 0);
+      const shipping = subtotal > 50 ? 0 : 4.99;
+      const tax = subtotal * 0.08;
+      const total = subtotal + shipping + tax;
+
+      const itemsHTML = cart.map(item => `
+        <div class="cart-item">
+          <img src="${item.thumbnail}" alt="${item.title}" onerror="this.src='https://via.placeholder.com/80'" />
+          <div class="cart-item-info">
+            <div class="cart-item-brand">${item.brand || item.category}</div>
+            <div class="cart-item-title">${item.title}</div>
+            <div class="cart-item-bottom">
+              <div class="qty-row">
+                <button class="qty-btn" onclick="updateQty(${item.id}, -1)">−</button>
+                <span class="qty-num">${item.qty}</span>
+                <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+              </div>
+              <span class="cart-item-price">$${(item.price * item.qty).toFixed(2)}</span>
+              <span class="each-price">$${item.price} each</span>
+            </div>
+          </div>
+          <button class="remove-btn" onclick="removeItem(${item.id})">✕</button>
+        </div>
+      `).join("");
+
+      const breakdownHTML = cart.map(item => `
+        <div class="breakdown-row">
+          <span class="breakdown-name">${item.title} ×${item.qty}</span>
+          <span>$${(item.price * item.qty).toFixed(2)}</span>
+        </div>
+      `).join("");
+
+      container.innerHTML = `
+        <div class="cart-grid">
+
+          <!-- ITEMS -->
+          <div>${itemsHTML}</div>
+
+          <!-- BILL SUMMARY -->
+          <div class="summary-box">
+            <div class="summary-title">Bill Summary</div>
+
+            <div class="summary-row">
+              <span>Subtotal (${totalItems} items)</span>
+              <span>$${subtotal.toFixed(2)}</span>
+            </div>
+
+            ${totalDiscount > 0 ? `
+              <div class="summary-row">
+                <span class="green">Discount Savings</span>
+                <span class="green">-$${totalDiscount.toFixed(2)}</span>
+              </div>
+            ` : ""}
+
+            <div class="summary-row">
+              <span>Shipping</span>
+              <span>${shipping === 0 ? '<span class="green">FREE</span>' : `$${shipping.toFixed(2)}`}</span>
+            </div>
+
+            <div class="summary-row">
+              <span>Tax (8%)</span>
+              <span>$${tax.toFixed(2)}</span>
+            </div>
+
+            ${subtotal < 50 ? `
+              <div class="free-shipping-msg">
+                Add $${(50 - subtotal).toFixed(2)} more for free shipping!
+              </div>
+            ` : ""}
+
+            <hr class="summary-divider" />
+
+            <div class="summary-total">
+              <span>Total</span>
+              <span>$${total.toFixed(2)}</span>
+            </div>
+
+            <button class="checkout-btn">Proceed to Checkout →</button>
+
+            <div class="secure-msg">🔒 Secure checkout · Free returns</div>
+
+            <hr class="summary-divider" />
+
+            <div class="order-breakdown">
+              <div class="order-breakdown-title">Order Breakdown</div>
+              ${breakdownHTML}
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    function updateQty(id, delta) {
+      let cart = getCart();
+      cart = cart.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i);
+      saveCart(cart);
+      updateCartBadge();
+      renderCart();
+    }
+
+    function removeItem(id) {
+      let cart = getCart().filter(i => i.id !== id);
+      saveCart(cart);
+      updateCartBadge();
+      renderCart();
+    }
+  </script>
+</body>
+</html>
